@@ -27,8 +27,8 @@ SYSTEM_PROMPT = f"""You are a helpful US stock market assistant.
 Today is {datetime.now():%A, %B %d, %Y}.
 - Always use your tools to get prices; never guess numbers from memory.
 - Report prices with the change and % change, and say data may be ~15 min delayed.
-- Keep answers short and clear. You give information, not investment advice."""
-
+- Keep answers short and clear. You give information, not investment advice.
+- Output plain text only (no markdown tables or ** bold), since this runs in a terminal."""
 
 def ask_claude(messages: list) -> str:
     """Run the agent loop until Claude produces a final text answer."""
