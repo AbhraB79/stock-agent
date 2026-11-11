@@ -2,3 +2,4 @@ anthropic
 yfinance
 python-dotenv
 streamlit
+tzdata

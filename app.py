@@ -12,6 +12,7 @@ How Streamlit works (the one idea to understand):
 
 import os
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import streamlit as st
 from anthropic import Anthropic
@@ -19,12 +20,32 @@ from dotenv import load_dotenv
 
 from stock_tools import TOOLS, get_market_overview, run_tool
 
-load_dotenv()  # reads ANTHROPIC_API_KEY (and optional CLAUDE_MODEL) from .env
-MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-5-5")
+load_dotenv()  # on your PC: reads ANTHROPIC_API_KEY (and optional CLAUDE_MODEL) from .env
 
-# In the browser we CAN show tables and bold text, so this prompt allows markdown
-SYSTEM_PROMPT = f"""You are a helpful US stock market assistant in a web chat.
-Today is {datetime.now():%A, %B %d, %Y}.
+
+def get_setting(name: str, default=None):
+    """Read a setting from .env (your PC) or from Streamlit Secrets (the cloud)."""
+    value = os.getenv(name)
+    if value:
+        return value
+    try:
+        return st.secrets.get(name, default)
+    except Exception:  # no secrets file on your PC — that's fine
+        return default
+
+
+API_KEY = get_setting("ANTHROPIC_API_KEY")
+MODEL = get_setting("CLAUDE_MODEL", "claude-sonnet-5-5")
+
+# Cloud servers run on UTC time, so ask for New York time explicitly
+NY = ZoneInfo("America/New_York")
+
+# The system prompt must stay EXACTLY the same for the whole chat — Claude's
+# earlier replies are tied to it. So no clock time here: the current time is
+# added to each question instead (see time_stamped below).
+SYSTEM_PROMPT = """You are a helpful US stock market assistant in a web chat.
+Each user message starts with the current US Eastern time in [brackets].
+US markets are open 9:30 AM-4:00 PM ET on weekdays; after 4 PM the latest price is the closing price.
 - Always use your tools to get prices; never guess numbers from memory.
 - Report prices with the change and % change, and say data may be ~15 min delayed.
 - Keep answers short and clear. Markdown tables and bold are fine.
@@ -45,12 +66,17 @@ st.set_page_config(page_title="Stock Agent", page_icon="📈", layout="wide")
 # ---------------------------------------------------------------------------
 @st.cache_resource  # create the API client once, not on every re-run
 def get_client():
-    return Anthropic()
+    return Anthropic(api_key=API_KEY)
 
 
 @st.cache_data(ttl=60)  # re-fetch index prices at most once a minute
 def cached_overview():
     return get_market_overview()
+
+
+def time_stamped(question: str) -> str:
+    """Put the current New York time in front of the question Claude receives."""
+    return f"[Current time: {datetime.now(NY):%A, %B %d, %Y, %I:%M %p} ET]\n{question}"
 
 
 def show(text: str):
@@ -144,8 +170,8 @@ with st.sidebar:
 st.title("Stock Agent")
 st.caption(f"Ask about S&P 500 and NASDAQ stocks · model: {MODEL} · not investment advice")
 
-if not os.getenv("ANTHROPIC_API_KEY"):
-    st.error("ANTHROPIC_API_KEY not found. Check that your .env file is in this folder.")
+if not API_KEY:
+    st.error("ANTHROPIC_API_KEY not found. Add it to .env (your PC) or to Secrets (Streamlit Cloud).")
     st.stop()
 
 # Replay the conversation so far (Streamlit redraws everything on each re-run)
@@ -165,7 +191,7 @@ if prompt:
 
     api = st.session_state.api_messages
     start = len(api)  # remember where this turn began, in case it fails
-    api.append({"role": "user", "content": prompt})
+    api.append({"role": "user", "content": time_stamped(prompt)})  # Claude sees the time; you don't
 
     with st.chat_message("assistant"):
         with st.status("Checking the market…") as status:
