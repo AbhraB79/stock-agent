@@ -21,5 +21,13 @@ python agent.py
 ## How it works
 - `stock_tools.py` — Python functions (quote, market overview, history) + tool schemas
 - `agent.py` — the agent loop: Claude picks tools, we run them, Claude answers
+- `app.py` — the same agent as a web chat (`streamlit run app.py`), with a sidebar of
+  index prices and price charts (5D / 1M / 1Y / 5Y / Max) when you ask for one,
+  e.g. "Show me a chart of NVDA"
+  - Technical analysis: "Do a technical analysis of AAPL" (SMA 20/50/200, RSI, MACD,
+    Bollinger bands, support/resistance), shown on the chart and explained
+  - Your own analysis: draw on charts with the mouse (temporary), or ask
+    "Draw a support line at 400 on MSFT" to save lines the agent can discuss
+- `technicals.py` — indicator maths (pandas); `charts.py` — builds the Plotly chart
 
 Data from Yahoo Finance via `yfinance`; may be delayed. Not investment advice.

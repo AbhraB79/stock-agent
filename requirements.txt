@@ -2,4 +2,5 @@ anthropic
 yfinance
 python-dotenv
 streamlit
+plotly
 tzdata
