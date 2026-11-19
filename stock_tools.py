@@ -149,9 +149,11 @@ CHART_PERIODS = {
 def _fetch_bars(symbol: str, period: str, interval: str) -> pd.DataFrame:
     """OHLCV bars as a DataFrame with a Date column (exchange time, no timezone)."""
     df = yf.Ticker(symbol).history(period=period, interval=interval)
+    if not df.empty:
+        df = df[["Open", "High", "Low", "Close", "Volume"]].dropna(subset=["Close"])
+    # Checked after dropna: rows with no Close are as good as no data
     if df.empty:
         raise ValueError(f"No price data found for '{symbol}'. Check the ticker.")
-    df = df[["Open", "High", "Low", "Close", "Volume"]].dropna(subset=["Close"])
     # Drop the timezone so the chart shows exchange (New York) time, not UTC
     df.index = df.index.tz_localize(None)
     return df.rename_axis("Date").reset_index()
